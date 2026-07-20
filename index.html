@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>班级课程表</title>
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --bg-grad-1: #eef2ff;
+    --bg-grad-2: #fdf2f8;
+    --card: #ffffff;
+    --text: #2b2d42;
+    --muted: #6c757d;
+    --border: #e9ecef;
+    --accent: #5c7cfa;
+    --accent-soft: #edf2ff;
+    --shadow: 0 10px 30px rgba(40, 50, 90, 0.08);
+    --radius: 16px;
+    --cell-text: #2b2d42;
+    --head-bg: #f8f9fc;
+    --today-glow: rgba(92, 124, 250, 0.18);
+  }
+  body.dark {
+    --bg: #12131a;
+    --bg-grad-1: #1a1c2b;
+    --bg-grad-2: #1b1430;
+    --card: #1c1e2b;
+    --text: #e7e9f3;
+    --muted: #9aa0b5;
+    --border: #2c2f40;
+    --accent: #8aa0ff;
+    --accent-soft: #232844;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    --cell-text: #1c1e2b;
+    --head-bg: #242736;
+    --today-glow: rgba(138, 160, 255, 0.30);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, var(--bg-grad-1), transparent 60%),
+      radial-gradient(1000px 500px at 110% 10%, var(--bg-grad-2), transparent 55%),
+      var(--bg);
+    min-height: 100vh;
+    transition: background-color .4s ease, color .4s ease;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 36px 20px 60px;
+  }
+
+  /* ---------- Header ---------- */
+  header.top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .title-block h1 {
+    margin: 0;
+    font-size: 30px;
+    letter-spacing: 1px;
+    background: linear-gradient(90deg, #5c7cfa, #b197fc, #f783ac);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .title-block .sub {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .theme-btn {
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    padding: 9px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: var(--shadow);
+    transition: transform .15s ease, background-color .3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .theme-btn:hover { transform: translateY(-2px); }
+  .theme-btn:active { transform: translateY(0); }
+
+  /* ---------- Controls ---------- */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .controls-row { display: flex; flex-wrap: wrap; gap: 22px; }
+  .control-group { flex: 1 1 280px; }
+  .control-group .label {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    font-weight: 600;
+    letter-spacing: .3px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 1px solid var(--border);
+    background: var(--head-bg);
+    color: var(--text);
+    padding: 7px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all .18s ease;
+    user-select: none;
+  }
+  .chip:hover { border-color: var(--accent); }
+  .chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 4px 12px var(--today-glow);
+  }
+
+  /* ---------- Table ---------- */
+  .table-card { overflow-x: auto; }
+  table.schedule {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 8px;
+    min-width: 720px;
+  }
+  table.schedule th, table.schedule td {
+    border-radius: 12px;
+    text-align: center;
+    font-size: 14px;
+  }
+  table.schedule thead th {
+    background: var(--head-bg);
+    color: var(--muted);
+    font-weight: 700;
+    padding: 12px 8px;
+    font-size: 13px;
+  }
+  table.schedule .corner { background: transparent; }
+  table.schedule .row-head {
+    background: var(--head-bg);
+    color: var(--text);
+    font-weight: 700;
+    padding: 10px 6px;
+    min-width: 56px;
+    font-size: 13px;
+  }
+  table.schedule td.cell {
+    padding: 14px 8px;
+    font-weight: 700;
+    color: var(--cell-text);
+    cursor: pointer;
+    position: relative;
+    border: 2px solid transparent;
+    transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    user-select: none;
+  }
+  table.schedule td.cell:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 8px 18px rgba(0,0,0,.12);
+    filter: brightness(1.03);
+  }
+  td.cell .subj { display: block; font-size: 15px; }
+  td.cell .tag { display: block; font-size: 11px; opacity: .7; margin-top: 3px; font-weight: 600; }
+
+  /* today highlight */
+  tr.day-row.today .row-head {
+    background: linear-gradient(135deg, var(--accent), #b197fc);
+    color: #fff;
+  }
+  tr.day-row.today td.cell {
+    box-shadow: 0 0 0 2px var(--accent) inset, 0 6px 16px var(--today-glow);
+  }
+
+  /* selected subject highlight */
+  td.cell.selected {
+    border-color: #fff;
+    box-shadow: 0 0 0 3px var(--accent), 0 8px 20px var(--today-glow);
+    transform: translateY(-2px);
+  }
+  body.dark td.cell.selected { border-color: #1c1e2b; }
+
+  /* filter hide */
+  .cell-hidden { display: none !important; }
+
+  /* ---------- Detail panel ---------- */
+  .detail {
+    margin-top: 18px;
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    background: var(--accent-soft);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px 22px;
+    min-height: 56px;
+  }
+  .detail .placeholder { color: var(--muted); font-size: 14px; }
+  .detail .d-dot {
+    width: 16px; height: 16px; border-radius: 5px; display: inline-block; vertical-align: middle; margin-right: 8px;
+  }
+  .detail .d-name { font-size: 18px; font-weight: 800; }
+  .detail .d-meta { font-size: 13px; color: var(--muted); }
+  .detail .d-note {
+    flex-basis: 100%;
+    font-size: 13px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 10px;
+    color: var(--text);
+  }
+  .clear-btn {
+    margin-left: auto;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .clear-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ---------- Today courses ---------- */
+  .today-section { margin-top: 24px; }
+  .today-section h2 {
+    font-size: 18px;
+    margin: 0 0 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .today-section h2 .pill {
+    font-size: 12px;
+    background: var(--accent);
+    color: #fff;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+  .course-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .course-card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+    transition: transform .15s ease;
+    cursor: pointer;
+  }
+  .course-card:hover { transform: translateY(-3px); }
+  .course-card .cc-top { display: flex; align-items: center; gap: 8px; }
+  .course-card .cc-dot { width: 12px; height: 12px; border-radius: 4px; }
+  .course-card .cc-name { font-weight: 800; font-size: 15px; }
+  .course-card .cc-meta { font-size: 12px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+
+  footer.foot { margin-top: 30px; text-align: center; color: var(--muted); font-size: 12px; }
+
+  /* ---------- Tooltip ---------- */
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 999;
+    background: rgba(20, 22, 35, 0.94);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity .12s ease, transform .12s ease;
+    max-width: 240px;
+  }
+  #tooltip.show { opacity: 1; transform: translateY(0); }
+  #tooltip .tt-name { font-weight: 800; font-size: 14px; margin-bottom: 4px; }
+  #tooltip .tt-row { opacity: .85; }
+  #tooltip .tt-note { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.15); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="title-block">
+      <h1>班级课程表</h1>
+      <div class="sub">高一(3)班 · 一周课程表</div>
+    </div>
+    <button class="theme-btn" id="themeBtn" title="切换白天 / 夜间配色">🌙 夜间模式</button>
+  </header>
+
+  <!-- Controls -->
+  <section class="panel">
+    <div class="controls-row">
+      <div class="control-group">
+        <div class="label">按星期筛选</div>
+        <div class="chips" id="dayChips"></div>
+      </div>
+      <div class="control-group">
+        <div class="label">按节次筛选</div>
+        <div class="chips" id="periodChips"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Table -->
+  <section class="panel table-card">
+    <table class="schedule">
+      <thead><tr id="theadRow"></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <div class="detail" id="detail">
+      <span class="placeholder">💡 点击任意课程查看详情；再次点击同一课程可取消高亮。悬浮可查看提示。</span>
+    </div>
+  </section>
+
+  <!-- Today courses -->
+  <section class="panel today-section">
+    <h2>今日课程 <span class="pill" id="todayPill">—</span></h2>
+    <div class="course-cards" id="todayCards"></div>
+  </section>
+
+  <footer class="foot">课程数据为示例数据，可在源码 <code>subjects</code> / <code>data</code> 中自由修改 · 单文件 HTML</footer>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+  /* ===================== 数据（可自由修改） ===================== */
+  const days = ['周一', '周二', '周三', '周四', '周五'];
+  const periods = ['第1节', '第2节', '第3节', '第4节', '第5节'];
+
+  // 课程元信息：颜色、教师、教室、备注
+  const subjects = {
+    '语文':   { color: '#FFB5A7', teacher: '王老师', room: '301', note: '带《必修二》与笔记本' },
+    '数学':   { color: '#A0C4FF', teacher: '李老师', room: '301', note: '带圆规、量角器与草稿本' },
+    '英语':   { color: '#BDB2FF', teacher: '张老师', room: '302', note: '听写 Unit 3，带听力耳机' },
+    '体育':   { color: '#CAFFBF', teacher: '陈老师', room: '操场', note: '穿运动鞋，注意防晒' },
+    '班会':   { color: '#FFD6A5', teacher: '班主任', room: '301', note: '穿校服、带班级日志' },
+    '物理':   { color: '#9BF6FF', teacher: '刘老师', room: '物理实验室', note: '带实验报告册，注意安全' },
+    '化学':   { color: '#FFC6FF', teacher: '赵老师', room: '化学实验室', note: '戴护目镜，穿实验服' },
+    '自习':   { color: '#E4E7EC', teacher: '—',     room: '301', note: '完成作业 / 自主复习' },
+    '生物':   { color: '#B9FBC9', teacher: '孙老师', room: '生物实验室', note: '带显微镜使用手册' },
+    '美术':   { color: '#FDFFB6', teacher: '周老师', room: '美术教室', note: '带画具、素描本' },
+    '信息技术': { color: '#A3C4F3', teacher: '吴老师', room: '计算机房', note: '机房上课，带鞋套' },
+    '历史':   { color: '#FFADAD', teacher: '郑老师', room: '303', note: '带历史地图册' }
+  };
+
+  // 课程表：每天对应 5 个节次的课程
+  const data = {
+    '周一': ['语文', '数学', '英语', '体育', '班会'],
+    '周二': ['数学', '物理', '化学', '英语', '自习'],
+    '周三': ['英语', '语文', '生物', '数学', '美术'],
+    '周四': ['物理', '数学', '语文', '信息技术', '体育'],
+    '周五': ['化学', '英语', '数学', '历史', '班会']
+  };
+
+  /* ===================== 状态 ===================== */
+  let curDay = 'all';
+  let curPeriod = 'all';
+  let selectedSubject = null;
+
+  /* ===================== 渲染表格 ===================== */
+  function renderTable() {
+    const thead = document.getElementById('theadRow');
+    let head = '<th class="corner">星期 \\ 节次</th>';
+    periods.forEach((p, i) => { head += `<th data-period="${i}">${p}</th>`; });
+    thead.innerHTML = head;
+
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+    days.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.className = 'day-row';
+      tr.dataset.day = d;
+      let row = `<th class="row-head" data-day="${d}">${d}</th>`;
+      data[d].forEach((subj, i) => {
+        const s = subjects[subj];
+        row += `<td class="cell" data-day="${d}" data-period="${i}" data-subject="${subj}"
+                     style="background:${s.color}">
+                  <span class="subj">${subj}</span>
+                  <span class="tag">${s.room}</span>
+                </td>`;
+      });
+      tr.innerHTML = row;
+      tbody.appendChild(tr);
+    });
+  }
+
+  /* ===================== 筛选 chips ===================== */
+  function renderChips() {
+    const dayBox = document.getElementById('dayChips');
+    dayBox.innerHTML = '';
+    ['all', ...days].forEach(d => {
+      const c = document.createElement('div');
+      c.className = 'chip' + (d === 'all' ? ' active' : '');
+      c.textContent = d === 'all' ? '全部' : d;
+      c.dataset.val = d;
+      c.onclick = () => { curDay = d; syncChips(); applyFilter(); };
+      dayBox.appendChild(c);
+    });
+
+    const perBox = document.getElementById('periodChips');
+    perBox.innerHTML = '';
+    ['all', ...periods].forEach(p => {
+      const c = document.createElement('div');
+      c.className = 'chip' + (p === 'all' ? ' active' : '');
+      c.textContent = p === 'all' ? '全部' : p;
+      c.dataset.val = p;
+      c.onclick = () => { curPeriod = p; syncChips(); applyFilter(); };
+      perBox.appendChild(c);
+    });
+  }
+  function syncChips() {
+    document.querySelectorAll('#dayChips .chip').forEach(c =>
+      c.classList.toggle('active', c.dataset.val === curDay));
+    document.querySelectorAll('#periodChips .chip').forEach(c =>
+      c.classList.toggle('active', c.dataset.val === curPeriod));
+  }
+
+  function applyFilter() {
+    // 星期筛选：隐藏整行
+    document.querySelectorAll('tr.day-row').forEach(tr => {
+      const show = curDay === 'all' || tr.dataset.day === curDay;
+      tr.style.display = show ? '' : 'none';
+    });
+    // 节次筛选：隐藏对应列（表头 + 单元格）
+    periods.forEach((p, i) => {
+      const show = curPeriod === 'all' || curPeriod === p;
+      document.querySelectorAll(`[data-period="${i}"]`).forEach(el =>
+        el.classList.toggle('cell-hidden', !show));
+    });
+  }
+
+  /* ===================== 点击高亮 + 详情 ===================== */
+  function onCellClick(subj) {
+    if (selectedSubject === subj) { clearSelection(); return; }
+    selectedSubject = subj;
+    document.querySelectorAll('td.cell').forEach(td => {
+      td.classList.toggle('selected', td.dataset.subject === subj);
+    });
+    showDetail(subj);
+  }
+  function clearSelection() {
+    selectedSubject = null;
+    document.querySelectorAll('td.cell.selected').forEach(td => td.classList.remove('selected'));
+    const d = document.getElementById('detail');
+    d.innerHTML = '<span class="placeholder">💡 点击任意课程查看详情；再次点击同一课程可取消高亮。悬浮可查看提示。</span>';
+  }
+  function showDetail(subj) {
+    const s = subjects[subj];
+    const count = days.reduce((n, d) => n + data[d].filter(x => x === subj).length, 0);
+    const d = document.getElementById('detail');
+    d.innerHTML = `
+      <span class="d-name"><span class="d-dot" style="background:${s.color}"></span>${subj}</span>
+      <span class="d-meta">任课：${s.teacher}　·　地点：${s.room}　·　每周 ${count} 节</span>
+      <button class="clear-btn" onclick="clearSelection()">清除高亮</button>
+      <div class="d-note">📌 备注：${s.note}</div>`;
+  }
+
+  /* ===================== 悬浮提示 ===================== */
+  const tooltip = document.getElementById('tooltip');
+  function bindTooltip() {
+    document.querySelectorAll('td.cell').forEach(td => {
+      td.addEventListener('mouseenter', e => {
+        const s = subjects[td.dataset.subject];
+        tooltip.innerHTML = `
+          <div class="tt-name">${td.dataset.subject}</div>
+          <div class="tt-row">${td.dataset.day} · ${periods[+td.dataset.period]}</div>
+          <div class="tt-row">任课：${s.teacher}</div>
+          <div class="tt-row">地点：${s.room}</div>
+          <div class="tt-note">备注：${s.note}</div>`;
+        tooltip.classList.add('show');
+      });
+      td.addEventListener('mousemove', e => {
+        let x = e.clientX + 14, y = e.clientY + 14;
+        const r = tooltip.getBoundingClientRect();
+        if (x + r.width > window.innerWidth) x = e.clientX - r.width - 14;
+        if (y + r.height > window.innerHeight) y = e.clientY - r.height - 14;
+        tooltip.style.left = x + 'px';
+        tooltip.style.top = y + 'px';
+      });
+      td.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
+      td.addEventListener('click', () => onCellClick(td.dataset.subject));
+    });
+  }
+
+  /* ===================== 今日课程 ===================== */
+  function getTodayDay() {
+    // 0=周日 ... 6=周六
+    const map = { 1: '周一', 2: '周二', 3: '周三', 4: '周四', 5: '周五' };
+    return map[new Date().getDay()] || null;
+  }
+  function renderTodayCourses(viewDay) {
+    const pill = document.getElementById('todayPill');
+    const box = document.getElementById('todayCards');
+    if (!viewDay) {
+      pill.textContent = '周末';
+      box.innerHTML = '<div class="course-card"><div class="cc-name">📚 周末愉快</div><div class="cc-meta">今天是周末，好好休息，记得复习本周内容～</div></div>';
+      return;
+    }
+    pill.textContent = viewDay;
+    box.innerHTML = '';
+    data[viewDay].forEach((subj, i) => {
+      const s = subjects[subj];
+      const card = document.createElement('div');
+      card.className = 'course-card';
+      card.innerHTML = `
+        <div class="cc-top"><span class="cc-dot" style="background:${s.color}"></span>
+          <span class="cc-name">${subj}</span></div>
+        <div class="cc-meta">${periods[i]}<br>👩‍🏫 ${s.teacher}<br>📍 ${s.room}<br>📌 ${s.note}</div>`;
+      card.onclick = () => onCellClick(subj);
+      box.appendChild(card);
+    });
+  }
+
+  /* ===================== 主题切换 ===================== */
+  function initTheme() {
+    let dark = false;
+    try { dark = localStorage.getItem('schedule-theme') === 'dark'; } catch (e) {}
+    if (dark) document.body.classList.add('dark');
+    updateThemeBtn();
+    document.getElementById('themeBtn').onclick = () => {
+      document.body.classList.toggle('dark');
+      const isDark = document.body.classList.contains('dark');
+      try { localStorage.setItem('schedule-theme', isDark ? 'dark' : 'light'); } catch (e) {}
+      updateThemeBtn();
+    };
+  }
+  function updateThemeBtn() {
+    const btn = document.getElementById('themeBtn');
+    const dark = document.body.classList.contains('dark');
+    btn.textContent = dark ? '☀️ 白天模式' : '🌙 夜间模式';
+  }
+
+  /* ===================== 初始化 ===================== */
+  function init() {
+    renderTable();
+    renderChips();
+    bindTooltip();
+    // 高亮今天
+    const today = getTodayDay();
+    if (today) {
+      const row = document.querySelector(`tr.day-row[data-day="${today}"]`);
+      if (row) row.classList.add('today');
+    }
+    renderTodayCourses(today || '周一');
+    initTheme();
+  }
+  init();
+</script>
+</body>
+</html>
